@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto TT - Agenda de Recordatorios (Google Sheets)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- PapaParse: parseo robusto de CSV (comillas, comas dentro de campos, etc.) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .main-container { max-width: 1200px; margin: 30px auto; }
+        .card-custom { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .btn-whatsapp { background-color: #25d366; color: white; font-weight: 600; }
+        .btn-whatsapp:hover { background-color: #128c7e; color: white; }
+        .btn-update { background-color: #4285F4; color: white; font-weight: 600; }
+        .btn-update:hover { background-color: #3367d6; color: white; }
+        .btn-update:disabled { opacity: 0.7; }
+        .contact-card { background: white; border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .contact-card.invalid { border-left: 4px solid #dc3545; }
+        .contact-meta { font-size: 0.8rem; color: #6c757d; }
+        .sidebar-sticky { position: sticky; top: 20px; }
+        #statusMsg, #discardedBox { display: none; }
+        .group-badge { font-size: 0.8rem; }
+        .placeholder-chip { cursor: pointer; user-select: none; }
+        .placeholder-chip:hover { background-color: #dee2e6 !important; }
+    </style>
+</head>
+<body>
+
+<div class="container main-container">
+    <div class="text-center mb-4">
+        <h1 class="fw-bold text-primary">📅 Agenda de Recordatorios - Consejería PPE</h1>
+        <p class="text-muted">Carga la agenda directamente desde Google Sheets y envía recordatorios agrupados por psicólogo.</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Panel lateral: fuente de datos + mensaje -->
+        <div class="col-lg-4">
+            <div class="sidebar-sticky">
+
+                <!-- Fuente de datos (fija) -->
+                <div class="card card-custom p-3 mb-3 bg-white">
+                    <div class="fw-bold mb-1">📄 Hoja conectada</div>
+                    <div class="small text-muted mb-2">
+                        Este archivo lee exclusivamente esta hoja pública (no acepta otra URL):<br>
+                        <a href="https://docs.google.com/spreadsheets/d/11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG/edit?gid=1902836655#gid=1902836655" target="_blank" rel="noopener noreferrer" class="text-break">docs.google.com/spreadsheets/d/11E50Zp5o…</a>
+                    </div>
+                    <div class="alert alert-warning py-2 px-2 small mb-0">
+                        ⚠️ Requiere que la hoja esté compartida como <b>"Cualquiera con el enlace puede ver"</b>. Como no hay inicio de sesión, cualquier persona con este archivo y el enlace podría ver nombres y teléfonos — no lo distribuyas fuera del equipo.
+                    </div>
+                </div>
+
+                <!-- Botón principal de actualización -->
+                <div class="card card-custom p-3 mb-3 bg-white text-center">
+                    <button class="btn btn-update w-100 py-2" id="updateBtn" onclick="actualizarAgenda()">
+                        🔄 Actualizar agenda de recordatorios
+                    </button>
+                    <div id="statusMsg" class="alert alert-info mt-2 mb-0 py-2 text-start"></div>
+                </div>
+
+                <!-- Mensaje -->
+                <div class="card card-custom p-3 mb-3 bg-white">
+                    <label for="messageBox" class="form-label fw-bold">✏️ Mensaje del recordatorio</label>
+                    <textarea class="form-control" id="messageBox" rows="6" placeholder="Escribe aquí tu mensaje…">Hola {nombre}, te recuerdo tu cita de consejería el {hora} en modalidad {modalidad}. Lugar: {lugar}.</textarea>
+                    <div class="form-text mb-2">Haz clic en una etiqueta para insertarla en el mensaje:</div>
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{nombre}')">{nombre}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{nombre_completo}')">{nombre_completo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{psicologo}')">{psicologo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{hora}')">{hora}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{modalidad}')">{modalidad}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{lugar}')">{lugar}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{salon}')">{salon}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{cubiculo}')">{cubiculo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{enlace}')">{enlace}</span>
+                    </div>
+                    <button class="btn btn-dark w-100" onclick="aplicarMensaje()">🔗 Aplicar mensaje a todos los grupos</button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Panel principal: grupos por psicólogo -->
+        <div class="col-lg-8">
+            <div id="discardedBox" class="alert alert-warning"></div>
+            <div id="groupsContainer">
+                <div class="text-center text-muted py-5">
+                    <p>Presiona <b>"Actualizar agenda de recordatorios"</b> para cargar los datos.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Esta página está fijada exclusivamente a esta hoja de cálculo y pestaña:
+    // https://docs.google.com/spreadsheets/d/11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG/edit?gid=1902836655
+    const SPREADSHEET_ID = '11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG';
+    const TARGET_GID = '1902836655';
+    // Endpoint público de Google (gviz) que sirve CSV con CORS habilitado para hojas
+    // compartidas como "Cualquiera con el enlace puede ver". No requiere login.
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${TARGET_GID}`;
+
+    let datosAgrupados = {};   // { psicologo: [contactos...] }
+    let ordenPsicologos = [];
+
+    const statusMsg = document.getElementById('statusMsg');
+    const updateBtn = document.getElementById('updateBtn');
+
+    function mostrarEstado(texto, tipo = 'info') {
+        statusMsg.textContent = texto;
+        statusMsg.className = `alert alert-${tipo} mt-2 mb-0 py-2 text-start`;
+        statusMsg.style.display = 'block';
+    }
+
+    function insertarPlaceholder(texto) {
+        let box = document.getElementById('messageBox');
+        let inicio = box.selectionStart;
+        let fin = box.selectionEnd;
+        box.value = box.value.slice(0, inicio) + texto + box.value.slice(fin);
+        box.focus();
+        box.selectionStart = box.selectionEnd = inicio + texto.length;
+    }
+
+    // --- Carga directa del CSV público, sin autenticación ---
+    function actualizarAgenda() {
+        updateBtn.disabled = true;
+        updateBtn.textContent = '⏳ Descargando datos…';
+        mostrarEstado('Descargando datos de la hoja…', 'info');
+
+        // Se agrega un parámetro de caché para evitar que el navegador reuse una copia vieja
+        fetch(`${CSV_URL}&_=${Date.now()}`)
+            .then(resp => {
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}`);
+                }
+                return resp.text();
+            })
+            .then(csvText => {
+                if (/^\s*<!DOCTYPE html/i.test(csvText) || /accounts\.google\.com/i.test(csvText)) {
+                    throw new Error('La hoja no es pública. Actívala en Compartir → "Cualquiera con el enlace: Lector".');
+                }
+                let resultado = Papa.parse(csvText.trim(), { skipEmptyLines: true });
+                if (resultado.errors && resultado.errors.length > 0) {
+                    console.warn('Advertencias al parsear CSV:', resultado.errors);
+                }
+                if (!resultado.data || resultado.data.length < 2) {
+                    mostrarEstado('La hoja no tiene datos suficientes (se requiere una fila de encabezados y al menos una de datos).', 'danger');
+                    restaurarBoton();
+                    return;
+                }
+                procesarFilas(resultado.data);
+                restaurarBoton();
+            })
+            .catch(err => {
+                console.error(err);
+                mostrarEstado('Error al leer la hoja: ' + err.message, 'danger');
+                restaurarBoton();
+            });
+    }
+
+    function restaurarBoton() {
+        updateBtn.disabled = false;
+        updateBtn.textContent = '🔄 Actualizar agenda de recordatorios';
+    }
+
+    // --- Detección flexible de columnas ---
+    function encontrarIndice(headers, terminos) {
+        let idx = headers.findIndex(h => terminos.some(t => new RegExp(`\\b${t}\\b`, 'i').test(h)));
+        if (idx !== -1) return idx;
+        return headers.findIndex(h => terminos.some(t => h.toLowerCase().includes(t)));
+    }
+
+    function normalizarTelefono(telefonoRaw) {
+        let limpio = String(telefonoRaw).replace(/\D/g, '');
+        if (!limpio) return { numero: '', valido: false };
+        if (limpio.length === 9 && limpio.startsWith('9')) return { numero: '51' + limpio, valido: true };
+        if (limpio.length === 11 && limpio.startsWith('519')) return { numero: limpio, valido: true };
+        if (limpio.length >= 8 && limpio.length <= 15) return { numero: limpio, valido: limpio.length >= 10 };
+        return { numero: limpio, valido: false };
+    }
+
+    function extraerPrimerNombre(nombre) {
+        nombre = String(nombre).trim();
+        if (!nombre) return 'Alumno';
+        let palabra = nombre.split(/\s+/)[0].replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '');
+        return palabra ? palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase() : 'Alumno';
+    }
+
+    function procesarFilas(filas) {
+        let headers = filas[0].map(h => String(h || '').trim());
+        let headersLower = headers.map(h => h.toLowerCase());
+
+        let idx = {
+            nombre: encontrarIndice(headersLower, ['nombre']),
+            apellido: encontrarIndice(headersLower, ['apellido']),
+            numero: encontrarIndice(headersLower, ['numero', 'número', 'celular', 'telefono', 'teléfono', 'whatsapp']),
+            psicologo: encontrarIndice(headersLower, ['psicologo', 'psicólogo', 'consejero', 'consejera']),
+            salon: encontrarIndice(headersLower, ['salon', 'salón']),
+            modalidad: encontrarIndice(headersLower, ['modalidad']),
+            lugar: encontrarIndice(headersLower, ['lugar']),
+            cubiculo: encontrarIndice(headersLower, ['cubiculo', 'cubículo']),
+            hora: encontrarIndice(headersLower, ['hora']),
+            enlace: encontrarIndice(headersLower, ['enlace', 'link', 'zoom'])
+        };
+
+        if (idx.nombre === -1 || idx.numero === -1 || idx.psicologo === -1) {
+            mostrarEstado('No se encontraron las columnas obligatorias (Nombre, Número, Psicólogo) en la primera fila de la hoja.', 'danger');
+            return;
+        }
+
+        let grupos = {};
+        let vistosPorGrupo = {};
+        let descartadosSinDatos = 0;
+        let descartadosDuplicados = 0;
+        let dudosos = 0;
+
+        filas.slice(1).forEach(fila => {
+            let get = (i) => (i >= 0 && i < fila.length ? String(fila[i] || '').trim() : '');
+
+            let nombre = get(idx.nombre);
+            let apellido = get(idx.apellido);
+            let nombreCompleto = [nombre, apellido].filter(Boolean).join(' ').trim();
+            let psicologo = get(idx.psicologo) || 'Sin asignar';
+            let telefonoRaw = get(idx.numero);
+
+            if (!nombreCompleto || !telefonoRaw) { descartadosSinDatos++; return; }
+
+            let { numero: telefonoLimpio, valido } = normalizarTelefono(telefonoRaw);
+            if (!telefonoLimpio) { descartadosSinDatos++; return; }
+            if (!valido) dudosos++;
+
+            vistosPorGrupo[psicologo] = vistosPorGrupo[psicologo] || new Set();
+            if (vistosPorGrupo[psicologo].has(telefonoLimpio)) { descartadosDuplicados++; return; }
+            vistosPorGrupo[psicologo].add(telefonoLimpio);
+
+            let contacto = {
+                nombreCompleto,
+                primerNombre: extraerPrimerNombre(nombre || nombreCompleto),
+                telefono: telefonoLimpio,
+                valido,
+                psicologo,
+                salon: get(idx.salon),
+                modalidad: get(idx.modalidad),
+                lugar: get(idx.lugar),
+                cubiculo: get(idx.cubiculo),
+                hora: get(idx.hora),
+                enlace: get(idx.enlace)
+            };
+
+            grupos[psicologo] = grupos[psicologo] || [];
+            grupos[psicologo].push(contacto);
+        });
+
+        datosAgrupados = grupos;
+        ordenPsicologos = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+
+        let discardedBox = document.getElementById('discardedBox');
+        if (descartadosSinDatos > 0 || descartadosDuplicados > 0 || dudosos > 0) {
+            let partes = [];
+            if (descartadosSinDatos > 0) partes.push(`${descartadosSinDatos} fila(s) sin nombre o número`);
+            if (descartadosDuplicados > 0) partes.push(`${descartadosDuplicados} duplicado(s)`);
+            if (dudosos > 0) partes.push(`${dudosos} número(s) con formato dudoso (⚠️ en la lista)`);
+            discardedBox.textContent = `⚠️ ${partes.join(' · ')}.`;
+            discardedBox.style.display = 'block';
+        } else {
+            discardedBox.style.display = 'none';
+        }
+
+        aplicarMensaje();
+        let total = Object.values(grupos).reduce((acc, arr) => acc + arr.length, 0);
+        mostrarEstado(`Agenda actualizada: ${total} alumno(s) en ${ordenPsicologos.length} grupo(s).`, 'success');
+    }
+
+    // --- Construcción del mensaje y render de tarjetas ---
+    function reemplazarPlaceholders(template, c) {
+        return template
+            .replace(/{nombre_completo}/g, c.nombreCompleto)
+            .replace(/{nombre}/g, c.primerNombre)
+            .replace(/{psicologo}/g, c.psicologo)
+            .replace(/{hora}/g, c.hora || '')
+            .replace(/{modalidad}/g, c.modalidad || '')
+            .replace(/{lugar}/g, c.lugar || '')
+            .replace(/{salon}/g, c.salon || '')
+            .replace(/{cubiculo}/g, c.cubiculo || '')
+            .replace(/{enlace}/g, c.enlace || '');
+    }
+
+    function crearTarjetaContacto(c, mensajeTemplate) {
+        let mensajeFinal = reemplazarPlaceholders(mensajeTemplate, c);
+        let url = `https://wa.me/${c.telefono}?text=${encodeURIComponent(mensajeFinal)}`;
+
+        let card = document.createElement('div');
+        card.className = 'contact-card' + (c.valido ? '' : ' invalid');
+
+        let info = document.createElement('div');
+        let titulo = document.createElement('div');
+        titulo.className = 'fw-bold text-dark';
+        titulo.textContent = c.nombreCompleto;
+
+        let meta = document.createElement('div');
+        meta.className = 'contact-meta';
+        let metaPartes = [`+${c.telefono}`];
+        if (c.hora) metaPartes.push(c.hora);
+        if (c.modalidad) metaPartes.push(c.modalidad);
+        if (c.lugar) metaPartes.push(c.lugar);
+        meta.textContent = metaPartes.join(' · ') + (c.valido ? '' : '  ⚠️ número dudoso');
+
+        info.appendChild(titulo);
+        info.appendChild(meta);
+
+        let boton = document.createElement('a');
+        boton.href = url;
+        boton.target = '_blank';
+        boton.rel = 'noopener noreferrer';
+        boton.className = 'btn btn-whatsapp btn-sm px-3 py-2';
+        boton.textContent = '💬 Enviar';
+
+        card.appendChild(info);
+        card.appendChild(boton);
+        return card;
+    }
+
+    function aplicarMensaje() {
+        let mensajeTemplate = document.getElementById('messageBox').value;
+        let container = document.getElementById('groupsContainer');
+        container.innerHTML = '';
+
+        if (ordenPsicologos.length === 0) return;
+
+        let accordion = document.createElement('div');
+        accordion.className = 'accordion';
+        accordion.id = 'psicologosAccordion';
+
+        ordenPsicologos.forEach((psicologo, i) => {
+            let contactos = datosAgrupados[psicologo];
+            let itemId = `grupo${i}`;
+
+            let item = document.createElement('div');
+            item.className = 'accordion-item mb-2';
+
+            let header = document.createElement('h2');
+            header.className = 'accordion-header';
+            let btn = document.createElement('button');
+            btn.className = 'accordion-button' + (i === 0 ? '' : ' collapsed');
+            btn.type = 'button';
+            btn.setAttribute('data-bs-toggle', 'collapse');
+            btn.setAttribute('data-bs-target', `#${itemId}`);
+            let nombreSpan = document.createElement('span');
+            nombreSpan.className = 'fw-bold me-2';
+            nombreSpan.textContent = `👤 ${psicologo}`;
+            let badge = document.createElement('span');
+            badge.className = 'badge bg-primary group-badge';
+            badge.textContent = `${contactos.length} alumno(s)`;
+            btn.appendChild(nombreSpan);
+            btn.appendChild(badge);
+            header.appendChild(btn);
+
+            let collapseDiv = document.createElement('div');
+            collapseDiv.id = itemId;
+            collapseDiv.className = 'accordion-collapse collapse' + (i === 0 ? ' show' : '');
+            collapseDiv.setAttribute('data-bs-parent', '#psicologosAccordion');
+
+            let body = document.createElement('div');
+            body.className = 'accordion-body bg-light';
+            let fragment = document.createDocumentFragment();
+            contactos.forEach(c => fragment.appendChild(crearTarjetaContacto(c, mensajeTemplate)));
+            body.appendChild(fragment);
+            collapseDiv.appendChild(body);
+
+            item.appendChild(header);
+            item.appendChild(collapseDiv);
+            accordion.appendChild(item);
+        });
+
+        container.appendChild(accordion);
+    }
+</script>
+
+<!-- Bootstrap JS (necesario para el acordeón) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
