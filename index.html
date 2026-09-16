@@ -62,13 +62,32 @@
                 <!-- Mensaje -->
                 <div class="card card-custom p-3 mb-3 bg-white">
                     <label for="messageBox" class="form-label fw-bold">✏️ Mensaje del recordatorio</label>
-                    <textarea class="form-control" id="messageBox" rows="6" placeholder="Escribe aquí tu mensaje…">Hola {nombre}, te recuerdo tu cita de consejería el {hora} en modalidad {modalidad}. Lugar: {lugar}.</textarea>
-                    <div class="form-text mb-2">Haz clic en una etiqueta para insertarla en el mensaje:</div>
+                    <textarea class="form-control" id="messageBox" rows="14" placeholder="Escribe aquí tu mensaje…">¡Hola, {nombre}, te saluda {psicologo}!
+
+Te recordamos tu cita de Consejería programada para hoy:
+
+📆 Fecha: {fecha}
+⏰ Hora: {hora}
+{emoji_psicologo} {rol_psicologo}: {psicologo}
+{detalle_modalidad}
+
+➡️ Por favor, te agradeceremos confirmar tu asistencia respondiendo a este mensaje.
+
+¡Te esperamos! 🫂
+
+Área de Tutoría y Consejería ❤️🧠</textarea>
+                    <div class="form-text mb-2">
+                        Haz clic en una etiqueta para insertarla en el mensaje. <b>{detalle_modalidad}</b> se reemplaza automáticamente: si el alumno es virtual pone el enlace de Zoom, si es presencial pone el lugar y cubículo.
+                    </div>
                     <div class="d-flex flex-wrap gap-1 mb-3">
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{nombre}')">{nombre}</span>
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{nombre_completo}')">{nombre_completo}</span>
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{psicologo}')">{psicologo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{rol_psicologo}')">{rol_psicologo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{emoji_psicologo}')">{emoji_psicologo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{fecha}')">{fecha}</span>
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{hora}')">{hora}</span>
+                        <span class="badge bg-primary-subtle text-dark border placeholder-chip" onclick="insertarPlaceholder('{detalle_modalidad}')">{detalle_modalidad}</span>
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{modalidad}')">{modalidad}</span>
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{lugar}')">{lugar}</span>
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{salon}')">{salon}</span>
@@ -273,13 +292,70 @@
         mostrarEstado(`Agenda actualizada: ${total} alumno(s) en ${ordenPsicologos.length} grupo(s).`, 'success');
     }
 
+    // --- Género de cada psicólogo(a), para elegir "Psicólogo"/"Psicóloga" y el emoji correcto ---
+    // Si la detección automática (por la terminación del primer nombre) se equivoca con algún caso
+    // particular, agrégalo aquí exactamente como aparece en la columna "Psicólogo" de la hoja.
+    const GENERO_PSICOLOGOS = {
+        // Ejemplo: 'Alex Ramírez': 'M',
+    };
+
+    function generoPsicologo(nombreCompleto) {
+        let clave = Object.keys(GENERO_PSICOLOGOS).find(k => k.toLowerCase() === String(nombreCompleto).toLowerCase());
+        if (clave) return GENERO_PSICOLOGOS[clave];
+
+        let primerNombre = String(nombreCompleto).trim().split(/\s+/)[0].toLowerCase();
+        return primerNombre.endsWith('a') ? 'F' : 'M';
+    }
+
+    function emojiPsicologo(nombreCompleto) {
+        return generoPsicologo(nombreCompleto) === 'F' ? '🙎🏻\u200d♀️' : '🙎🏻\u200d♂️';
+    }
+
+    function rolPsicologo(nombreCompleto) {
+        return generoPsicologo(nombreCompleto) === 'F' ? 'Psicóloga' : 'Psicólogo';
+    }
+
     // --- Construcción del mensaje y render de tarjetas ---
+
+    // Fecha de hoy en español, ej: "16 de septiembre de 2026"
+    function formatearFechaHoy() {
+        let texto = new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
+        return texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+
+    // Arma la línea de "Lugar/Enlace" según la modalidad del alumno.
+    // Virtual -> enlace de Zoom. Presencial -> lugar + número de cubículo.
+    // Si la modalidad no calza con ninguna de las dos, muestra lo que haya disponible.
+    function detalleModalidad(c) {
+        let modalidad = (c.modalidad || '').toLowerCase();
+
+        if (modalidad.includes('virtual')) {
+            return `💻 Enlace de acceso: ${c.enlace || '(pendiente de confirmar)'}`;
+        }
+        if (modalidad.includes('presencial')) {
+            let lugar = c.lugar || 'Área de Consejería';
+            let cubiculo = c.cubiculo ? ` (Cubículo ${c.cubiculo})` : '';
+            return `📍 Lugar: ${lugar}${cubiculo}`;
+        }
+
+        // Modalidad no reconocida: mostrar lo que exista sin asumir nada
+        let partes = [];
+        if (c.lugar) partes.push(`Lugar: ${c.lugar}`);
+        if (c.cubiculo) partes.push(`Cubículo: ${c.cubiculo}`);
+        if (c.enlace) partes.push(`Enlace: ${c.enlace}`);
+        return partes.length ? `📍 ${partes.join(' · ')}` : '';
+    }
+
     function reemplazarPlaceholders(template, c) {
         return template
             .replace(/{nombre_completo}/g, c.nombreCompleto)
             .replace(/{nombre}/g, c.primerNombre)
             .replace(/{psicologo}/g, c.psicologo)
+            .replace(/{rol_psicologo}/g, rolPsicologo(c.psicologo))
+            .replace(/{emoji_psicologo}/g, emojiPsicologo(c.psicologo))
+            .replace(/{fecha}/g, formatearFechaHoy())
             .replace(/{hora}/g, c.hora || '')
+            .replace(/{detalle_modalidad}/g, detalleModalidad(c))
             .replace(/{modalidad}/g, c.modalidad || '')
             .replace(/{lugar}/g, c.lugar || '')
             .replace(/{salon}/g, c.salon || '')
