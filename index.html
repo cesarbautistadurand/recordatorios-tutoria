@@ -180,7 +180,7 @@ Te recordamos tu cita de Consejería programada para hoy:
 <script>
     let tokenClient = null;
     let accessToken = null;
-    let datosAgrupados = {};   // { nombrePestana: [contactos...] }
+    let datosAgrupados = {};   
     let ordenPsicologos = [];
 
     const statusMsg = document.getElementById('statusMsg');
@@ -193,14 +193,12 @@ Te recordamos tu cita de Consejería programada para hoy:
         statusMsg.style.display = 'block';
     }
 
-    // --- Configuración persistida localmente (el Client ID no es secreto) ---
     function cargarConfig() {
         try {
             let cfg = JSON.parse(localStorage.getItem('cepuSheetsConfig') || '{}');
             if (cfg.clientId) document.getElementById('clientId').value = cfg.clientId;
-            // Si no hay spreadsheet ID guardado, ponemos el que venía por defecto
-            document.getElementById('spreadsheetId').value = cfg.spreadsheetId || '11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG';
-        } catch (e) { /* sin config previa */ }
+            if (cfg.spreadsheetId) document.getElementById('spreadsheetId').value = cfg.spreadsheetId;
+        } catch (e) { }
     }
 
     function guardarConfig() {
@@ -227,7 +225,6 @@ Te recordamos tu cita de Consejería programada para hoy:
         box.selectionStart = box.selectionEnd = inicio + texto.length;
     }
 
-    // --- Autenticación y descubrimiento automático de TODAS las pestañas ---
     function actualizarAgenda() {
         let clientId = document.getElementById('clientId').value.trim();
         let spreadsheetId = document.getElementById('spreadsheetId').value.trim();
@@ -244,7 +241,7 @@ Te recordamos tu cita de Consejería programada para hoy:
 
         updateBtn.disabled = true;
         updateBtn.textContent = '⏳ Conectando con Google…';
-        cancelBtn.classList.remove('d-none'); // Mostrar botón de cancelar por si se traba
+        cancelBtn.classList.remove('d-none'); 
         mostrarEstado('Solicitando acceso a tu cuenta de Google… (Revisa si el navegador bloqueó una ventana emergente)', 'info');
 
         try {
@@ -262,7 +259,6 @@ Te recordamos tu cita de Consejería programada para hoy:
                         cargarTodasLasPestanas(spreadsheetId);
                     },
                     error_callback: (err) => {
-                        // Atrapa algunos errores si se cierra el popup bruscamente
                         mostrarEstado('Error de autenticación: El proceso fue cancelado o hubo un problema de conexión.', 'danger');
                         restaurarBoton();
                     }
@@ -327,10 +323,12 @@ Te recordamos tu cita de Consejería programada para hoy:
             });
     }
 
-    // --- Detección flexible de columnas ---
+    // NUEVA DETECCIÓN MEJORADA DE COLUMNAS
     function encontrarIndice(headers, terminos) {
+        // 1. Búsqueda exacta de palabra
         let idx = headers.findIndex(h => terminos.some(t => new RegExp(`\\b${t}\\b`, 'i').test(h)));
         if (idx !== -1) return idx;
+        // 2. Búsqueda por fragmentos (si la palabra forma parte de una oración)
         return headers.findIndex(h => terminos.some(t => h.toLowerCase().includes(t)));
     }
 
@@ -367,16 +365,17 @@ Te recordamos tu cita de Consejería programada para hoy:
             let headers = filas[0].map(h => String(h || '').trim());
             let headersLower = headers.map(h => h.toLowerCase());
 
+            // LISTA DE BÚSQUEDA AMPLIADA PARA ADAPTARSE A TU EXCEL
             let idx = {
-                nombre: encontrarIndice(headersLower, ['nombre']),
-                apellido: encontrarIndice(headersLower, ['apellido']),
-                numero: encontrarIndice(headersLower, ['numero', 'número', 'celular', 'telefono', 'teléfono', 'whatsapp']),
-                salon: encontrarIndice(headersLower, ['salon', 'salón']),
-                modalidad: encontrarIndice(headersLower, ['modalidad']),
-                lugar: encontrarIndice(headersLower, ['lugar']),
-                cubiculo: encontrarIndice(headersLower, ['cubiculo', 'cubículo']),
-                hora: encontrarIndice(headersLower, ['hora']),
-                enlace: encontrarIndice(headersLower, ['enlace', 'link', 'zoom'])
+                nombre: encontrarIndice(headersLower, ['nombre', 'nombres', 'estudiante', 'alumno', 'paciente', 'contacto']),
+                apellido: encontrarIndice(headersLower, ['apellido', 'apellidos']),
+                numero: encontrarIndice(headersLower, ['numero', 'número', 'celular', 'telefono', 'teléfono', 'whatsapp', 'cel', 'telf', 'móvil', 'movil', 'wsp']),
+                salon: encontrarIndice(headersLower, ['salon', 'salón', 'aula', 'grupo']),
+                modalidad: encontrarIndice(headersLower, ['modalidad', 'tipo', 'formato']),
+                lugar: encontrarIndice(headersLower, ['lugar', 'sede']),
+                cubiculo: encontrarIndice(headersLower, ['cubiculo', 'cubículo', 'sala']),
+                hora: encontrarIndice(headersLower, ['hora', 'horario', 'turno']),
+                enlace: encontrarIndice(headersLower, ['enlace', 'link', 'zoom', 'meet', 'url'])
             };
 
             if (idx.nombre === -1 || idx.numero === -1) {
