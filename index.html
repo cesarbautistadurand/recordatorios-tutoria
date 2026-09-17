@@ -5,176 +5,601 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PRE Cayetano - Agenda de Recordatorios de Consejería</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Identity Services: maneja el login OAuth del psicólogo/administrador -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
             --cepu-maroon: #5c1a4a;
             --cepu-navy: #2b2f6b;
             --cepu-gold: #f4b400;
+            --cepu-orange: #e0472b;
+            --cepu-magenta: #9c1857;
+            --cepu-blue: #1565c0;
         }
         body {
             background-color: #f3f1f6;
-            font-family: 'Poppins', sans-serif;
-            padding: 20px;
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .main-container { max-width: 800px; margin: 0 auto; }
-        .card-header {
-            background: linear-gradient(115deg, var(--cepu-maroon) 0%, var(--cepu-navy) 100%);
-            color: white;
-            text-align: center;
-            font-weight: 600;
+        .main-container { max-width: 1200px; margin: 0 auto 40px auto; }
+        .top-banner {
+            background: linear-gradient(115deg, var(--cepu-maroon) 0%, var(--cepu-maroon) 45%, var(--cepu-navy) 100%);
+            padding: 22px 28px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            flex-wrap: wrap;
         }
-        .btn-whatsapp {
-            background-color: #25D366;
-            color: white;
-            font-weight: 600;
+        .top-banner img { height: 56px; background: white; padding: 6px 10px; border-radius: 8px; }
+        .top-banner .titulos h1 { color: #fff; font-weight: 700; font-size: 1.5rem; margin: 0; }
+        .top-banner .titulos p { color: #f1d9ea; font-weight: 400; font-size: 0.95rem; margin: 2px 0 0 0; }
+        .bottom-bar {
+            height: 10px;
+            background: linear-gradient(90deg, var(--cepu-maroon) 0%, var(--cepu-magenta) 55%, var(--cepu-orange) 100%);
+            margin-top: 30px;
+            border-radius: 6px;
         }
-        .btn-whatsapp:hover {
-            background-color: #128C7E;
-            color: white;
+        .card-custom { border: none; border-radius: 14px; box-shadow: 0 4px 22px rgba(92,26,74,0.08); }
+        .btn-whatsapp { background-color: #25d366; color: white; font-weight: 600; border: none; }
+        .btn-whatsapp:hover { background-color: #128c7e; color: white; }
+        .btn-update {
+            background: linear-gradient(90deg, var(--cepu-orange), var(--cepu-gold));
+            color: white; font-weight: 700; border: none; letter-spacing: 0.2px;
         }
+        .btn-update:hover { filter: brightness(0.95); color: white; }
+        .btn-update:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-aplicar {
+            background: var(--cepu-navy); color: white; font-weight: 600; border: none;
+        }
+        .btn-aplicar:hover { background: #20244f; color: white; }
+        .contact-card { background: white; border-radius: 10px; padding: 12px 15px; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-left: 4px solid var(--cepu-gold); }
+        .contact-card.invalid { border-left: 4px solid #dc3545; }
+        .contact-meta { font-size: 0.8rem; color: #6c757d; }
+        .sidebar-sticky { position: sticky; top: 20px; }
+        #statusMsg, #discardedBox { display: none; }
+        .group-badge { font-size: 0.8rem; background: var(--cepu-gold) !important; color: #3a2200; }
+        .placeholder-chip { cursor: pointer; user-select: none; }
+        .placeholder-chip:hover { background-color: #e7dcf0 !important; }
+        .fw-bold.section-title { color: var(--cepu-maroon); }
+        .accordion-button:not(.collapsed) {
+            background-color: var(--cepu-navy); color: #fff;
+        }
+        .accordion-button:not(.collapsed)::after { filter: invert(1); }
+        .accordion-button { font-weight: 600; }
+        h1, h2, .fw-bold { font-family: 'Poppins', sans-serif; }
     </style>
 </head>
 <body>
 
-    <div class="main-container mt-4">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h4 class="mb-0">Generador de Recordatorios - Consejería CEPU</h4>
+<div class="top-banner">
+    <img src="data:image/png;base64,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" alt="PRE Cayetano">
+    <div class="titulos">
+        <h1>Agenda de Recordatorios &mdash; Consejería</h1>
+        <p>Área de Tutoría y Consejería · PRE Cayetano</p>
+    </div>
+</div>
+
+<div class="container main-container">
+    <div class="row g-4">
+        <!-- Panel lateral: fuente de datos + mensaje -->
+        <div class="col-lg-4">
+            <div class="sidebar-sticky">
+
+                <!-- Conexión con Google Sheets (OAuth) -->
+                <div class="card card-custom p-3 mb-3 bg-white">
+                    <button class="btn btn-link text-decoration-none p-0 fw-bold section-title text-start" type="button" data-bs-toggle="collapse" data-bs-target="#configPanel">
+                        ⚙️ Configuración y Conexión <small class="text-muted">(clic para configurar)</small>
+                    </button>
+                    <div class="collapse" id="configPanel">
+                        <hr>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">ID del Documento (Spreadsheet ID)</label>
+                            <input type="text" class="form-control form-control-sm" id="spreadsheetId" placeholder="Ej: 11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG">
+                            <div class="form-text" style="font-size: 0.75rem;">Es el código largo que aparece en la URL del Google Sheet.</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Client ID de OAuth (Google Cloud)</label>
+                            <input type="text" class="form-control form-control-sm" id="clientId" placeholder="xxxxx.apps.googleusercontent.com">
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="rememberConfig" checked>
+                            <label class="form-check-label small" for="rememberConfig">Recordar estos datos en este navegador</label>
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm w-100" onclick="guardarConfig()">Guardar configuración</button>
+                    </div>
+                </div>
+
+                <!-- Botón principal de actualización -->
+                <div class="card card-custom p-3 mb-3 bg-white text-center">
+                    <button class="btn btn-update w-100 py-2" id="updateBtn" onclick="actualizarAgenda()">
+                        🔄 Actualizar agenda de recordatorios
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm w-100 mt-2 d-none" id="cancelBtn" onclick="restaurarBoton()">
+                        ❌ Cancelar / Desbloquear botón
+                    </button>
+                    <div id="statusMsg" class="alert alert-info mt-2 mb-0 py-2 text-start"></div>
+                </div>
+
+                <!-- Mensaje -->
+                <div class="card card-custom p-3 mb-3 bg-white">
+                    <label for="messageBox" class="form-label fw-bold section-title">✏️ Mensaje del recordatorio</label>
+                    <textarea class="form-control" id="messageBox" rows="14" placeholder="Escribe aquí tu mensaje&hellip;">¡Hola, {nombre}, te saluda {psicologo}!
+
+Te recordamos tu cita de Consejería programada para hoy:
+
+📆 Fecha: {fecha}
+⏰ Hora: {hora}
+{emoji_psicologo} {rol_psicologo}: {psicologo}
+{detalle_modalidad}
+
+➡️ Por favor, te agradeceremos confirmar tu asistencia respondiendo a este mensaje.
+
+¡Te esperamos! 🫂
+
+Área de Tutoría y Consejería ❤️🧠</textarea>
+                    <div class="form-text mb-2">
+                        Haz clic en una etiqueta para insertarla en el mensaje.
+                    </div>
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{nombre}')">{nombre}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{nombre_completo}')">{nombre_completo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{psicologo}')">{psicologo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{rol_psicologo}')">{rol_psicologo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{emoji_psicologo}')">{emoji_psicologo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{fecha}')">{fecha}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{hora}')">{hora}</span>
+                        <span class="badge bg-primary-subtle text-dark border placeholder-chip" onclick="insertarPlaceholder('{detalle_modalidad}')">{detalle_modalidad}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{modalidad}')">{modalidad}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{lugar}')">{lugar}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{salon}')">{salon}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{cubiculo}')">{cubiculo}</span>
+                        <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{enlace}')">{enlace}</span>
+                    </div>
+                    <button class="btn btn-aplicar w-100" onclick="aplicarMensaje()">🔗 Aplicar mensaje a todos los grupos</button>
+                </div>
+
             </div>
-            <div class="card-body">
-                <form id="formularioRecordatorio">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Número de WhatsApp (con código de país)</label>
-                            <input type="text" class="form-control" id="telefono" placeholder="Ej: 51999999999" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Nombre del Estudiante</label>
-                            <input type="text" class="form-control" id="nombre" placeholder="Ej: Carlos" required>
-                        </div>
-                    </div>
+        </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Fecha</label>
-                            <input type="text" class="form-control" id="fecha" placeholder="Ej: 18 de septiembre" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Hora</label>
-                            <input type="text" class="form-control" id="hora" placeholder="Ej: 16:00 pm" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Psicóloga(o)</label>
-                            <input type="text" class="form-control" id="psicologa" placeholder="Nombre del profesional" required>
-                        </div>
-                    </div>
-
-                    <div class="row mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label">Modalidad</label>
-                            <select class="form-select" id="modalidad" onchange="alternarCamposDinámicos()">
-                                <option value="presencial">Presencial</option>
-                                <option value="virtual">Virtual</option>
-                            </select>
-                        </div>
-                        
-                        <!-- Campo dinámico para Presencial -->
-                        <div class="col-md-8" id="divLugar">
-                            <label class="form-label">Lugar</label>
-                            <input type="text" class="form-control" id="lugar" placeholder="Ej: Cuarto piso (Cubículo 1)">
-                        </div>
-
-                        <!-- Campo dinámico para Virtual (Oculto por defecto) -->
-                        <div class="col-md-8" id="divEnlace" style="display: none;">
-                            <label class="form-label">Enlace de la reunión</label>
-                            <input type="text" class="form-control" id="enlace" placeholder="Ej: https://zoom.us/j/123456789">
-                        </div>
-                    </div>
-
-                    <div class="text-center">
-                        <button type="button" class="btn btn-whatsapp btn-lg w-100" onclick="enviarMensaje()">
-                            Generar y Enviar por WhatsApp
-                        </button>
-                    </div>
-                </form>
+        <!-- Panel principal: grupos por psicólogo -->
+        <div class="col-lg-8">
+            <div id="discardedBox" class="alert alert-warning"></div>
+            <div id="groupsContainer">
+                <div class="text-center text-muted py-5">
+                    <p>Presiona <b>"Actualizar agenda de recordatorios"</b> para cargar los datos.</p>
+                </div>
             </div>
         </div>
     </div>
+    <div class="bottom-bar"></div>
+</div>
 
-    <script>
-        // Función para mostrar "Lugar" o "Enlace" según la modalidad elegida
-        function alternarCamposDinámicos() {
-            const modalidad = document.getElementById('modalidad').value;
-            const divLugar = document.getElementById('divLugar');
-            const divEnlace = document.getElementById('divEnlace');
+<script>
+    let tokenClient = null;
+    let accessToken = null;
+    let datosAgrupados = {};   
+    let ordenPsicologos = [];
 
-            if (modalidad === 'presencial') {
-                divLugar.style.display = 'block';
-                divEnlace.style.display = 'none';
-            } else {
-                divLugar.style.display = 'none';
-                divEnlace.style.display = 'block';
-            }
+    const statusMsg = document.getElementById('statusMsg');
+    const updateBtn = document.getElementById('updateBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    function mostrarEstado(texto, tipo = 'info') {
+        statusMsg.textContent = texto;
+        statusMsg.className = `alert alert-${tipo} mt-2 mb-0 py-2 text-start`;
+        statusMsg.style.display = 'block';
+    }
+
+    function cargarConfig() {
+        try {
+            let cfg = JSON.parse(localStorage.getItem('cepuSheetsConfig') || '{}');
+            if (cfg.clientId) document.getElementById('clientId').value = cfg.clientId;
+            if (cfg.spreadsheetId) document.getElementById('spreadsheetId').value = cfg.spreadsheetId;
+        } catch (e) { }
+    }
+
+    function guardarConfig() {
+        if (!document.getElementById('rememberConfig').checked) {
+            localStorage.removeItem('cepuSheetsConfig');
+            mostrarEstado('Configuración no guardada (recordar está desactivado).', 'secondary');
+            return;
+        }
+        localStorage.setItem('cepuSheetsConfig', JSON.stringify({ 
+            clientId: document.getElementById('clientId').value.trim(),
+            spreadsheetId: document.getElementById('spreadsheetId').value.trim()
+        }));
+        mostrarEstado('Configuración guardada en este navegador.', 'success');
+    }
+
+    window.addEventListener('DOMContentLoaded', cargarConfig);
+
+    function insertarPlaceholder(texto) {
+        let box = document.getElementById('messageBox');
+        let inicio = box.selectionStart;
+        let fin = box.selectionEnd;
+        box.value = box.value.slice(0, inicio) + texto + box.value.slice(fin);
+        box.focus();
+        box.selectionStart = box.selectionEnd = inicio + texto.length;
+    }
+
+    function actualizarAgenda() {
+        let clientId = document.getElementById('clientId').value.trim();
+        let spreadsheetId = document.getElementById('spreadsheetId').value.trim();
+
+        if (!clientId || !spreadsheetId) {
+            mostrarEstado('Falta configurar el Client ID o el ID del documento (⚙️ arriba).', 'warning');
+            document.getElementById('configPanel').classList.add('show');
+            return;
+        }
+        if (typeof google === 'undefined' || !google.accounts) {
+            mostrarEstado('No se pudo cargar la librería de Google. Verifica tu conexión a internet o desactiva tu bloqueador de anuncios.', 'danger');
+            return;
         }
 
-        // Función principal para armar y enviar el mensaje
-        function enviarMensaje() {
-            // 1. Recoger los datos del formulario
-            const telefono = document.getElementById('telefono').value.replace(/\s+/g, ''); // Quita espacios
-            const nombre = document.getElementById('nombre').value;
-            const fecha = document.getElementById('fecha').value;
-            const hora = document.getElementById('hora').value;
-            const psicologa = document.getElementById('psicologa').value;
-            const modalidad = document.getElementById('modalidad').value;
+        updateBtn.disabled = true;
+        updateBtn.textContent = '⏳ Conectando con Google…';
+        cancelBtn.classList.remove('d-none'); 
+        mostrarEstado('Solicitando acceso a tu cuenta de Google… (Revisa si el navegador bloqueó una ventana emergente)', 'info');
 
-            // Validación básica
-            if(!telefono || !nombre || !fecha || !hora || !psicologa) {
-                alert("Por favor, completa los campos básicos.");
+        try {
+            if (!tokenClient || tokenClient.__clientId !== clientId) {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: clientId,
+                    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+                    callback: (tokenResponse) => {
+                        if (tokenResponse.error) {
+                            mostrarEstado('No se pudo autorizar el acceso: ' + tokenResponse.error, 'danger');
+                            restaurarBoton();
+                            return;
+                        }
+                        accessToken = tokenResponse.access_token;
+                        cargarTodasLasPestanas(spreadsheetId);
+                    },
+                    error_callback: (err) => {
+                        mostrarEstado('Error de autenticación: El proceso fue cancelado o hubo un problema de conexión.', 'danger');
+                        restaurarBoton();
+                    }
+                });
+                tokenClient.__clientId = clientId;
+            }
+
+            tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+        } catch (e) {
+            mostrarEstado('Error al iniciar la conexión: ' + e.message, 'danger');
+            restaurarBoton();
+        }
+    }
+
+    function restaurarBoton() {
+        updateBtn.disabled = false;
+        updateBtn.textContent = '🔄 Actualizar agenda de recordatorios';
+        cancelBtn.classList.add('d-none');
+    }
+
+    function llamarSheetsApi(spreadsheetId, path) {
+        return fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}${path}`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        }).then(resp => {
+            if (!resp.ok) {
+                return resp.json().then(err => { throw new Error(err.error?.message || `HTTP ${resp.status}`); });
+            }
+            return resp.json();
+        });
+    }
+
+    function cargarTodasLasPestanas(spreadsheetId) {
+        mostrarEstado('Detectando las pestañas de la hoja…', 'info');
+
+        llamarSheetsApi(spreadsheetId, '?fields=sheets.properties(title)')
+            .then(meta => {
+                let titulos = (meta.sheets || []).map(s => s.properties.title);
+                if (titulos.length === 0) {
+                    throw new Error('La hoja de cálculo no tiene ninguna pestaña.');
+                }
+
+                mostrarEstado(`Descargando datos de ${titulos.length} pestaña(s): ${titulos.join(', ')}…`, 'info');
+
+                let rangos = titulos
+                    .map(t => `ranges=${encodeURIComponent(`'${t.replace(/'/g, "''")}'!A1:Z2000`)}`)
+                    .join('&');
+
+                return llamarSheetsApi(spreadsheetId, `/values:batchGet?${rangos}`).then(json => ({ titulos, valueRanges: json.valueRanges || [] }));
+            })
+            .then(({ titulos, valueRanges }) => {
+                let hojas = titulos.map((titulo, i) => ({
+                    nombre: titulo,
+                    filas: (valueRanges[i] && valueRanges[i].values) || []
+                }));
+                procesarHojas(hojas);
+                restaurarBoton();
+            })
+            .catch(err => {
+                console.error(err);
+                mostrarEstado('Error al leer la hoja: ' + err.message + ' (verifica que el ID sea correcto y tengas permisos).', 'danger');
+                restaurarBoton();
+            });
+    }
+
+    // NUEVA DETECCIÓN MEJORADA DE COLUMNAS
+    function encontrarIndice(headers, terminos) {
+        // 1. Búsqueda exacta de palabra
+        let idx = headers.findIndex(h => terminos.some(t => new RegExp(`\\b${t}\\b`, 'i').test(h)));
+        if (idx !== -1) return idx;
+        // 2. Búsqueda por fragmentos (si la palabra forma parte de una oración)
+        return headers.findIndex(h => terminos.some(t => h.toLowerCase().includes(t)));
+    }
+
+    function normalizarTelefono(telefonoRaw) {
+        let limpio = String(telefonoRaw).replace(/\D/g, '');
+        if (!limpio) return { numero: '', valido: false };
+        if (limpio.length === 9 && limpio.startsWith('9')) return { numero: '51' + limpio, valido: true };
+        if (limpio.length === 11 && limpio.startsWith('519')) return { numero: limpio, valido: true };
+        if (limpio.length >= 8 && limpio.length <= 15) return { numero: limpio, valido: limpio.length >= 10 };
+        return { numero: limpio, valido: false };
+    }
+
+    function extraerPrimerNombre(nombre) {
+        nombre = String(nombre).trim();
+        if (!nombre) return 'Alumno';
+        let palabra = nombre.split(/\s+/)[0].replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '');
+        return palabra ? palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase() : 'Alumno';
+    }
+
+    function procesarHojas(hojas) {
+        let grupos = {};
+        let ordenNombres = [];
+        let descartadosSinDatos = 0;
+        let descartadosDuplicados = 0;
+        let dudosos = 0;
+        let hojasIgnoradas = [];
+
+        hojas.forEach(({ nombre: nombreHoja, filas }) => {
+            if (!filas || filas.length < 2) {
+                hojasIgnoradas.push(nombreHoja);
                 return;
             }
 
-            let mensaje = "";
+            let headers = filas[0].map(h => String(h || '').trim());
+            let headersLower = headers.map(h => h.toLowerCase());
 
-            // 2. Construir el mensaje según la modalidad seleccionada
-            if (modalidad === 'presencial') {
-                const lugar = document.getElementById('lugar').value || "Por confirmar";
-                mensaje = `¡Hola, ${nombre}! 👋
+            // LISTA DE BÚSQUEDA AMPLIADA PARA ADAPTARSE A TU EXCEL
+            let idx = {
+                nombre: encontrarIndice(headersLower, ['nombre', 'nombres', 'estudiante', 'alumno', 'paciente', 'contacto']),
+                apellido: encontrarIndice(headersLower, ['apellido', 'apellidos']),
+                numero: encontrarIndice(headersLower, ['numero', 'número', 'celular', 'telefono', 'teléfono', 'whatsapp', 'cel', 'telf', 'móvil', 'movil', 'wsp']),
+                salon: encontrarIndice(headersLower, ['salon', 'salón', 'aula', 'grupo']),
+                modalidad: encontrarIndice(headersLower, ['modalidad', 'tipo', 'formato']),
+                lugar: encontrarIndice(headersLower, ['lugar', 'sede']),
+                cubiculo: encontrarIndice(headersLower, ['cubiculo', 'cubículo', 'sala']),
+                hora: encontrarIndice(headersLower, ['hora', 'horario', 'turno']),
+                enlace: encontrarIndice(headersLower, ['enlace', 'link', 'zoom', 'meet', 'url'])
+            };
 
-Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te recordamos tu cita programada para hoy:
-
-📅 Fecha: ${fecha}
-⏰ Hora: ${hora}
-👩🏻‍⚕️ Psicóloga: ${psicologa}
-📍 Lugar: ${lugar}
-
-➡️ Por favor, confirma tu asistencia respondiendo a este mensaje.
-
-¡Te esperamos! 🫂`;
-
-            } else if (modalidad === 'virtual') {
-                const enlace = document.getElementById('enlace').value || "Enlace pendiente";
-                mensaje = `¡Hola, ${nombre}! 👋
-
-Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te recordamos tu cita programada para hoy:
-
-📅 Fecha: ${fecha}
-⏰ Hora: ${hora}
-👩🏻‍⚕️ Psicóloga: ${psicologa}
-💻 Enlace: ${enlace}
-
-➡️ Por favor, confirma tu asistencia respondiendo a este mensaje.
-
-¡Te esperamos! 🫂`;
+            if (idx.nombre === -1 || idx.numero === -1) {
+                hojasIgnoradas.push(nombreHoja);
+                return;
             }
 
-            // 3. Codificar el texto para proteger los emojis y espacios
-            const mensajeCodificado = encodeURIComponent(mensaje);
+            let psicologo = nombreHoja;
+            let vistos = new Set();
 
-            // 4. Crear la URL de WhatsApp y abrirla
-            const urlWhatsApp = `https://wa.me/${telefono}?text=${mensajeCodificado}`;
-            window.open(urlWhatsApp, '_blank');
+            filas.slice(1).forEach(fila => {
+                let get = (i) => (i >= 0 && i < fila.length ? String(fila[i] || '').trim() : '');
+
+                let nombre = get(idx.nombre);
+                let apellido = get(idx.apellido);
+                let nombreCompleto = [nombre, apellido].filter(Boolean).join(' ').trim();
+                let telefonoRaw = get(idx.numero);
+
+                if (!nombreCompleto || !telefonoRaw) { descartadosSinDatos++; return; }
+
+                let { numero: telefonoLimpio, valido } = normalizarTelefono(telefonoRaw);
+                if (!telefonoLimpio) { descartadosSinDatos++; return; }
+                if (!valido) dudosos++;
+
+                if (vistos.has(telefonoLimpio)) { descartadosDuplicados++; return; }
+                vistos.add(telefonoLimpio);
+
+                let contacto = {
+                    nombreCompleto,
+                    primerNombre: extraerPrimerNombre(nombre || nombreCompleto),
+                    telefono: telefonoLimpio,
+                    valido,
+                    psicologo,
+                    salon: get(idx.salon),
+                    modalidad: get(idx.modalidad),
+                    lugar: get(idx.lugar),
+                    cubiculo: get(idx.cubiculo),
+                    hora: get(idx.hora),
+                    enlace: get(idx.enlace)
+                };
+
+                grupos[psicologo] = grupos[psicologo] || [];
+                grupos[psicologo].push(contacto);
+            });
+
+            if (grupos[psicologo] && grupos[psicologo].length > 0) {
+                ordenNombres.push(psicologo);
+            }
+        });
+
+        datosAgrupados = grupos;
+        ordenPsicologos = ordenNombres;
+
+        let discardedBox = document.getElementById('discardedBox');
+        let partes = [];
+        if (descartadosSinDatos > 0) partes.push(`${descartadosSinDatos} fila(s) sin nombre o número`);
+        if (descartadosDuplicados > 0) partes.push(`${descartadosDuplicados} duplicado(s)`);
+        if (dudosos > 0) partes.push(`${dudosos} número(s) con formato dudoso (⚠️ en la lista)`);
+        if (hojasIgnoradas.length > 0) partes.push(`no se pudo leer: ${hojasIgnoradas.join(', ')} (¿está vacía o le faltan columnas Nombre/Número?)`);
+
+        if (partes.length > 0) {
+            discardedBox.textContent = `⚠️ ${partes.join(' · ')}.`;
+            discardedBox.style.display = 'block';
+        } else {
+            discardedBox.style.display = 'none';
         }
-    </script>
+
+        aplicarMensaje();
+        let total = Object.values(grupos).reduce((acc, arr) => acc + arr.length, 0);
+        mostrarEstado(`Agenda actualizada: ${total} alumno(s) en ${ordenPsicologos.length} grupo(s).`, 'success');
+    }
+
+    const GENERO_PSICOLOGOS = {
+        // Ejemplo: 'Alex Ramírez': 'M',
+    };
+
+    function generoPsicologo(nombreCompleto) {
+        let clave = Object.keys(GENERO_PSICOLOGOS).find(k => k.toLowerCase() === String(nombreCompleto).toLowerCase());
+        if (clave) return GENERO_PSICOLOGOS[clave];
+
+        let primerNombre = String(nombreCompleto).trim().split(/\s+/)[0].toLowerCase();
+        return primerNombre.endsWith('a') ? 'F' : 'M';
+    }
+
+    function emojiPsicologo(nombreCompleto) {
+        return generoPsicologo(nombreCompleto) === 'F' ? '🙎🏻\u200d♀️' : '🙎🏻\u200d♂️';
+    }
+
+    function rolPsicologo(nombreCompleto) {
+        return generoPsicologo(nombreCompleto) === 'F' ? 'Psicóloga' : 'Psicólogo';
+    }
+
+    function formatearFechaHoy() {
+        let texto = new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
+        return texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+
+    function detalleModalidad(c) {
+        let modalidad = (c.modalidad || '').toLowerCase();
+
+        if (modalidad.includes('virtual')) {
+            return `💻 Enlace de acceso: ${c.enlace || '(pendiente de confirmar)'}`;
+        }
+        if (modalidad.includes('presencial')) {
+            let lugar = c.lugar || 'Área de Consejería';
+            let cubiculo = c.cubiculo ? ` (Cubículo ${c.cubiculo})` : '';
+            return `📍 Lugar: ${lugar}${cubiculo}`;
+        }
+
+        let partes = [];
+        if (c.lugar) partes.push(`Lugar: ${c.lugar}`);
+        if (c.cubiculo) partes.push(`Cubículo: ${c.cubiculo}`);
+        if (c.enlace) partes.push(`Enlace: ${c.enlace}`);
+        return partes.length ? `📍 ${partes.join(' · ')}` : '';
+    }
+
+    function reemplazarPlaceholders(template, c) {
+        return template
+            .replace(/{nombre_completo}/g, c.nombreCompleto)
+            .replace(/{nombre}/g, c.primerNombre)
+            .replace(/{psicologo}/g, c.psicologo)
+            .replace(/{rol_psicologo}/g, rolPsicologo(c.psicologo))
+            .replace(/{emoji_psicologo}/g, emojiPsicologo(c.psicologo))
+            .replace(/{fecha}/g, formatearFechaHoy())
+            .replace(/{hora}/g, c.hora || '')
+            .replace(/{detalle_modalidad}/g, detalleModalidad(c))
+            .replace(/{modalidad}/g, c.modalidad || '')
+            .replace(/{lugar}/g, c.lugar || '')
+            .replace(/{salon}/g, c.salon || '')
+            .replace(/{cubiculo}/g, c.cubiculo || '')
+            .replace(/{enlace}/g, c.enlace || '');
+    }
+
+    function crearTarjetaContacto(c, mensajeTemplate) {
+        let mensajeFinal = reemplazarPlaceholders(mensajeTemplate, c);
+        let url = `https://wa.me/${c.telefono}?text=${encodeURIComponent(mensajeFinal)}`;
+
+        let card = document.createElement('div');
+        card.className = 'contact-card' + (c.valido ? '' : ' invalid');
+
+        let info = document.createElement('div');
+        let titulo = document.createElement('div');
+        titulo.className = 'fw-bold text-dark';
+        titulo.textContent = c.nombreCompleto;
+
+        let meta = document.createElement('div');
+        meta.className = 'contact-meta';
+        let metaPartes = [`+${c.telefono}`];
+        if (c.hora) metaPartes.push(c.hora);
+        if (c.modalidad) metaPartes.push(c.modalidad);
+        if (c.lugar) metaPartes.push(c.lugar);
+        meta.textContent = metaPartes.join(' · ') + (c.valido ? '' : '  ⚠️ número dudoso');
+
+        info.appendChild(titulo);
+        info.appendChild(meta);
+
+        let boton = document.createElement('a');
+        boton.href = url;
+        boton.target = '_blank';
+        boton.rel = 'noopener noreferrer';
+        boton.className = 'btn btn-whatsapp btn-sm px-3 py-2';
+        boton.textContent = '💬 Enviar';
+
+        card.appendChild(info);
+        card.appendChild(boton);
+        return card;
+    }
+
+    function aplicarMensaje() {
+        let mensajeTemplate = document.getElementById('messageBox').value;
+        let container = document.getElementById('groupsContainer');
+        container.innerHTML = '';
+
+        if (ordenPsicologos.length === 0) return;
+
+        let accordion = document.createElement('div');
+        accordion.className = 'accordion';
+        accordion.id = 'psicologosAccordion';
+
+        ordenPsicologos.forEach((psicologo, i) => {
+            let contactos = datosAgrupados[psicologo];
+            let itemId = `grupo${i}`;
+
+            let item = document.createElement('div');
+            item.className = 'accordion-item mb-2';
+
+            let header = document.createElement('h2');
+            header.className = 'accordion-header';
+            let btn = document.createElement('button');
+            btn.className = 'accordion-button' + (i === 0 ? '' : ' collapsed');
+            btn.type = 'button';
+            btn.setAttribute('data-bs-toggle', 'collapse');
+            btn.setAttribute('data-bs-target', `#${itemId}`);
+            let nombreSpan = document.createElement('span');
+            nombreSpan.className = 'fw-bold me-2';
+            nombreSpan.textContent = `👤 ${psicologo}`;
+            let badge = document.createElement('span');
+            badge.className = 'badge group-badge';
+            badge.textContent = `${contactos.length} alumno(s)`;
+            btn.appendChild(nombreSpan);
+            btn.appendChild(badge);
+            header.appendChild(btn);
+
+            let collapseDiv = document.createElement('div');
+            collapseDiv.id = itemId;
+            collapseDiv.className = 'accordion-collapse collapse' + (i === 0 ? ' show' : '');
+            collapseDiv.setAttribute('data-bs-parent', '#psicologosAccordion');
+
+            let body = document.createElement('div');
+            body.className = 'accordion-body bg-light';
+            let fragment = document.createDocumentFragment();
+            contactos.forEach(c => fragment.appendChild(crearTarjetaContacto(c, mensajeTemplate)));
+            body.appendChild(fragment);
+            collapseDiv.appendChild(body);
+
+            item.appendChild(header);
+            item.appendChild(collapseDiv);
+            accordion.appendChild(item);
+        });
+
+        container.appendChild(accordion);
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
