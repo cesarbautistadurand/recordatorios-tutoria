@@ -73,7 +73,9 @@
 
         h1,
         h2,
-        .fw-bold {
+        .fw-bold,
+        button,
+        .badge {
             font-family:
                 'Poppins',
                 'Apple Color Emoji',
@@ -111,24 +113,25 @@
         }
 
         /*
-         * Logo simplificado.
-         * Puedes reemplazarlo posteriormente por una imagen.
+         * Caja para el Logo actualizado
          */
         .logo-box {
-            height: 56px;
-            min-width: 100px;
+            height: 65px;
+            min-width: 150px;
 
             background: white;
-            padding: 6px 12px;
+            padding: 8px 15px;
             border-radius: 8px;
 
             display: flex;
             align-items: center;
             justify-content: center;
+        }
 
-            color: var(--cepu-maroon);
-            font-size: 1rem;
-            font-weight: 800;
+        .logo-box img {
+            max-height: 45px;
+            width: auto;
+            object-fit: contain;
         }
 
         .top-banner .titulos h1 {
@@ -293,7 +296,7 @@
         }
 
         /* =========================================================
-           PLACEHOLDERS
+           PLACEHOLDERS Y MENSAJE
            ========================================================= */
 
         .placeholder-chip {
@@ -307,6 +310,12 @@
 
         .fw-bold.section-title {
             color: var(--cepu-maroon);
+        }
+
+        /* Regla específica para que el mensaje no use Poppins y parezca texto plano */
+        #messageBox {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
+            font-size: 0.95rem;
         }
 
         /* =========================================================
@@ -341,7 +350,7 @@
     <div class="top-banner">
 
         <div class="logo-box">
-            PRE CAYETANO
+            <img src="logo-cepu.png" alt="Logo PRE Cayetano">
         </div>
 
         <div class="titulos">
