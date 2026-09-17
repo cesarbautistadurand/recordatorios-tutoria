@@ -50,7 +50,7 @@
             color: white; font-weight: 700; border: none; letter-spacing: 0.2px;
         }
         .btn-update:hover { filter: brightness(0.95); color: white; }
-        .btn-update:disabled { opacity: 0.7; }
+        .btn-update:disabled { opacity: 0.7; cursor: not-allowed; }
         .btn-aplicar {
             background: var(--cepu-navy); color: white; font-weight: 600; border: none;
         }
@@ -91,22 +91,22 @@
                 <!-- Conexión con Google Sheets (OAuth) -->
                 <div class="card card-custom p-3 mb-3 bg-white">
                     <button class="btn btn-link text-decoration-none p-0 fw-bold section-title text-start" type="button" data-bs-toggle="collapse" data-bs-target="#configPanel">
-                        ⚙️ Conexión con Google Sheets <small class="text-muted">(clic para configurar)</small>
+                        ⚙️ Configuración y Conexión <small class="text-muted">(clic para configurar)</small>
                     </button>
                     <div class="collapse" id="configPanel">
                         <hr>
                         <div class="mb-2">
+                            <label class="form-label small fw-bold">ID del Documento (Spreadsheet ID)</label>
+                            <input type="text" class="form-control form-control-sm" id="spreadsheetId" placeholder="Ej: 11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG">
+                            <div class="form-text" style="font-size: 0.75rem;">Es el código largo que aparece en la URL del Google Sheet.</div>
+                        </div>
+                        <div class="mb-2">
                             <label class="form-label small fw-bold">Client ID de OAuth (Google Cloud)</label>
                             <input type="text" class="form-control form-control-sm" id="clientId" placeholder="xxxxx.apps.googleusercontent.com">
                         </div>
-                        <div class="alert alert-secondary py-2 px-2 small mb-2">
-                            📄 Hoja fija (no editable desde aquí):<br>
-                            <a href="https://docs.google.com/spreadsheets/d/11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG/edit?gid=1902836655#gid=1902836655" target="_blank" rel="noopener noreferrer" class="text-break">docs.google.com/spreadsheets/d/11E50Zp5o&hellip;</a><br>
-                            Se leen <b>todas sus pestañas automáticamente</b>; el nombre de cada pestaña se usa como nombre del psicólogo.
-                        </div>
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="rememberConfig" checked>
-                            <label class="form-check-label small" for="rememberConfig">Recordar el Client ID en este navegador</label>
+                            <label class="form-check-label small" for="rememberConfig">Recordar estos datos en este navegador</label>
                         </div>
                         <button class="btn btn-outline-secondary btn-sm w-100" onclick="guardarConfig()">Guardar configuración</button>
                     </div>
@@ -116,6 +116,9 @@
                 <div class="card card-custom p-3 mb-3 bg-white text-center">
                     <button class="btn btn-update w-100 py-2" id="updateBtn" onclick="actualizarAgenda()">
                         🔄 Actualizar agenda de recordatorios
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm w-100 mt-2 d-none" id="cancelBtn" onclick="restaurarBoton()">
+                        ❌ Cancelar / Desbloquear botón
                     </button>
                     <div id="statusMsg" class="alert alert-info mt-2 mb-0 py-2 text-start"></div>
                 </div>
@@ -138,7 +141,7 @@ Te recordamos tu cita de Consejería programada para hoy:
 
 Área de Tutoría y Consejería ❤️🧠</textarea>
                     <div class="form-text mb-2">
-                        Haz clic en una etiqueta para insertarla en el mensaje. <b>{detalle_modalidad}</b> se reemplaza automáticamente: si el alumno es virtual pone el enlace de Zoom, si es presencial pone el lugar y cubículo. <b>{psicologo}</b> ahora se toma del nombre de la pestaña.
+                        Haz clic en una etiqueta para insertarla en el mensaje.
                     </div>
                     <div class="d-flex flex-wrap gap-1 mb-3">
                         <span class="badge bg-light text-dark border placeholder-chip" onclick="insertarPlaceholder('{nombre}')">{nombre}</span>
@@ -175,8 +178,6 @@ Te recordamos tu cita de Consejería programada para hoy:
 </div>
 
 <script>
-    const SPREADSHEET_ID = '11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG';
-
     let tokenClient = null;
     let accessToken = null;
     let datosAgrupados = {};   // { nombrePestana: [contactos...] }
@@ -184,6 +185,7 @@ Te recordamos tu cita de Consejería programada para hoy:
 
     const statusMsg = document.getElementById('statusMsg');
     const updateBtn = document.getElementById('updateBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
 
     function mostrarEstado(texto, tipo = 'info') {
         statusMsg.textContent = texto;
@@ -196,6 +198,8 @@ Te recordamos tu cita de Consejería programada para hoy:
         try {
             let cfg = JSON.parse(localStorage.getItem('cepuSheetsConfig') || '{}');
             if (cfg.clientId) document.getElementById('clientId').value = cfg.clientId;
+            // Si no hay spreadsheet ID guardado, ponemos el que venía por defecto
+            document.getElementById('spreadsheetId').value = cfg.spreadsheetId || '11E50Zp5o-y-HFjQd6WOqhMOPaZfjXEuG';
         } catch (e) { /* sin config previa */ }
     }
 
@@ -205,7 +209,10 @@ Te recordamos tu cita de Consejería programada para hoy:
             mostrarEstado('Configuración no guardada (recordar está desactivado).', 'secondary');
             return;
         }
-        localStorage.setItem('cepuSheetsConfig', JSON.stringify({ clientId: document.getElementById('clientId').value.trim() }));
+        localStorage.setItem('cepuSheetsConfig', JSON.stringify({ 
+            clientId: document.getElementById('clientId').value.trim(),
+            spreadsheetId: document.getElementById('spreadsheetId').value.trim()
+        }));
         mostrarEstado('Configuración guardada en este navegador.', 'success');
     }
 
@@ -223,48 +230,61 @@ Te recordamos tu cita de Consejería programada para hoy:
     // --- Autenticación y descubrimiento automático de TODAS las pestañas ---
     function actualizarAgenda() {
         let clientId = document.getElementById('clientId').value.trim();
+        let spreadsheetId = document.getElementById('spreadsheetId').value.trim();
 
-        if (!clientId) {
-            mostrarEstado('Falta configurar el Client ID de OAuth (⚙️ arriba).', 'warning');
+        if (!clientId || !spreadsheetId) {
+            mostrarEstado('Falta configurar el Client ID o el ID del documento (⚙️ arriba).', 'warning');
             document.getElementById('configPanel').classList.add('show');
             return;
         }
         if (typeof google === 'undefined' || !google.accounts) {
-            mostrarEstado('No se pudo cargar la librería de Google. Verifica tu conexión a internet.', 'danger');
+            mostrarEstado('No se pudo cargar la librería de Google. Verifica tu conexión a internet o desactiva tu bloqueador de anuncios.', 'danger');
             return;
         }
 
         updateBtn.disabled = true;
         updateBtn.textContent = '⏳ Conectando con Google…';
-        mostrarEstado('Solicitando acceso a tu cuenta de Google…', 'info');
+        cancelBtn.classList.remove('d-none'); // Mostrar botón de cancelar por si se traba
+        mostrarEstado('Solicitando acceso a tu cuenta de Google… (Revisa si el navegador bloqueó una ventana emergente)', 'info');
 
-        if (!tokenClient || tokenClient.__clientId !== clientId) {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: clientId,
-                scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
-                callback: (tokenResponse) => {
-                    if (tokenResponse.error) {
-                        mostrarEstado('No se pudo autorizar el acceso: ' + tokenResponse.error, 'danger');
+        try {
+            if (!tokenClient || tokenClient.__clientId !== clientId) {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: clientId,
+                    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+                    callback: (tokenResponse) => {
+                        if (tokenResponse.error) {
+                            mostrarEstado('No se pudo autorizar el acceso: ' + tokenResponse.error, 'danger');
+                            restaurarBoton();
+                            return;
+                        }
+                        accessToken = tokenResponse.access_token;
+                        cargarTodasLasPestanas(spreadsheetId);
+                    },
+                    error_callback: (err) => {
+                        // Atrapa algunos errores si se cierra el popup bruscamente
+                        mostrarEstado('Error de autenticación: El proceso fue cancelado o hubo un problema de conexión.', 'danger');
                         restaurarBoton();
-                        return;
                     }
-                    accessToken = tokenResponse.access_token;
-                    cargarTodasLasPestanas();
-                }
-            });
-            tokenClient.__clientId = clientId;
-        }
+                });
+                tokenClient.__clientId = clientId;
+            }
 
-        tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+            tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+        } catch (e) {
+            mostrarEstado('Error al iniciar la conexión: ' + e.message, 'danger');
+            restaurarBoton();
+        }
     }
 
     function restaurarBoton() {
         updateBtn.disabled = false;
         updateBtn.textContent = '🔄 Actualizar agenda de recordatorios';
+        cancelBtn.classList.add('d-none');
     }
 
-    function llamarSheetsApi(path) {
-        return fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}${path}`, {
+    function llamarSheetsApi(spreadsheetId, path) {
+        return fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}${path}`, {
             headers: { Authorization: `Bearer ${accessToken}` }
         }).then(resp => {
             if (!resp.ok) {
@@ -274,13 +294,10 @@ Te recordamos tu cita de Consejería programada para hoy:
         });
     }
 
-    // 1) Pide la lista de TODAS las pestañas (sus nombres) — esto es lo que la versión
-    //    pública no podía hacer sin login.
-    // 2) Pide, en una sola llamada, los valores de todas esas pestañas.
-    function cargarTodasLasPestanas() {
+    function cargarTodasLasPestanas(spreadsheetId) {
         mostrarEstado('Detectando las pestañas de la hoja…', 'info');
 
-        llamarSheetsApi('?fields=sheets.properties(title)')
+        llamarSheetsApi(spreadsheetId, '?fields=sheets.properties(title)')
             .then(meta => {
                 let titulos = (meta.sheets || []).map(s => s.properties.title);
                 if (titulos.length === 0) {
@@ -293,7 +310,7 @@ Te recordamos tu cita de Consejería programada para hoy:
                     .map(t => `ranges=${encodeURIComponent(`'${t.replace(/'/g, "''")}'!A1:Z2000`)}`)
                     .join('&');
 
-                return llamarSheetsApi(`/values:batchGet?${rangos}`).then(json => ({ titulos, valueRanges: json.valueRanges || [] }));
+                return llamarSheetsApi(spreadsheetId, `/values:batchGet?${rangos}`).then(json => ({ titulos, valueRanges: json.valueRanges || [] }));
             })
             .then(({ titulos, valueRanges }) => {
                 let hojas = titulos.map((titulo, i) => ({
@@ -305,7 +322,7 @@ Te recordamos tu cita de Consejería programada para hoy:
             })
             .catch(err => {
                 console.error(err);
-                mostrarEstado('Error al leer la hoja: ' + err.message + ' (verifica que tu cuenta de Google tenga acceso a esta hoja).', 'danger');
+                mostrarEstado('Error al leer la hoja: ' + err.message + ' (verifica que el ID sea correcto y tengas permisos).', 'danger');
                 restaurarBoton();
             });
     }
@@ -333,8 +350,6 @@ Te recordamos tu cita de Consejería programada para hoy:
         return palabra ? palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase() : 'Alumno';
     }
 
-    // Procesa las filas de CADA pestaña; el nombre del psicólogo es el de la pestaña
-    // (columna "Psicólogo" ya no es necesaria, aunque si existe simplemente se ignora).
     function procesarHojas(hojas) {
         let grupos = {};
         let ordenNombres = [];
@@ -434,9 +449,6 @@ Te recordamos tu cita de Consejería programada para hoy:
         mostrarEstado(`Agenda actualizada: ${total} alumno(s) en ${ordenPsicologos.length} grupo(s).`, 'success');
     }
 
-    // --- Género de cada psicólogo(a), para elegir "Psicólogo"/"Psicóloga" y el emoji correcto ---
-    // Si la detección automática (por la terminación del primer nombre) se equivoca con algún caso
-    // particular, agrégalo aquí exactamente como aparece en el nombre de la pestaña.
     const GENERO_PSICOLOGOS = {
         // Ejemplo: 'Alex Ramírez': 'M',
     };
@@ -457,15 +469,11 @@ Te recordamos tu cita de Consejería programada para hoy:
         return generoPsicologo(nombreCompleto) === 'F' ? 'Psicóloga' : 'Psicólogo';
     }
 
-    // --- Construcción del mensaje y render de tarjetas ---
-
-    // Fecha de hoy en español, ej: "16 de septiembre de 2026"
     function formatearFechaHoy() {
         let texto = new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
         return texto.charAt(0).toUpperCase() + texto.slice(1);
     }
 
-    // Arma la línea de "Lugar/Enlace" según la modalidad del alumno.
     function detalleModalidad(c) {
         let modalidad = (c.modalidad || '').toLowerCase();
 
@@ -593,7 +601,6 @@ Te recordamos tu cita de Consejería programada para hoy:
     }
 </script>
 
-<!-- Bootstrap JS (necesario para el acordeón) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
