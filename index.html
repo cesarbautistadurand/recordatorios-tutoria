@@ -17,60 +17,162 @@
             font-family: 'Poppins', sans-serif;
             padding: 20px;
         }
-        /* ... (Tus otros estilos) ... */
+        .main-container { max-width: 800px; margin: 0 auto; }
+        .card-header {
+            background: linear-gradient(115deg, var(--cepu-maroon) 0%, var(--cepu-navy) 100%);
+            color: white;
+            text-align: center;
+            font-weight: 600;
+        }
+        .btn-whatsapp {
+            background-color: #25D366;
+            color: white;
+            font-weight: 600;
+        }
+        .btn-whatsapp:hover {
+            background-color: #128C7E;
+            color: white;
+        }
     </style>
 </head>
 <body>
 
-    <div class="main-container container mt-5">
+    <div class="main-container mt-4">
         <div class="card shadow">
+            <div class="card-header py-3">
+                <h4 class="mb-0">Generador de Recordatorios - Consejería CEPU</h4>
+            </div>
             <div class="card-body">
-                <h3 class="card-title text-center" style="color: var(--cepu-maroon);">Enviar Recordatorio</h3>
-                
-                <!-- Botón de prueba -->
-                <div class="text-center mt-4">
-                    <button class="btn btn-success btn-lg" onclick="enviarMensajeWhatsApp()">
-                        Enviar WhatsApp al Alumno
-                    </button>
-                </div>
+                <form id="formularioRecordatorio">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Número de WhatsApp (con código de país)</label>
+                            <input type="text" class="form-control" id="telefono" placeholder="Ej: 51999999999" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre del Estudiante</label>
+                            <input type="text" class="form-control" id="nombre" placeholder="Ej: Carlos" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha</label>
+                            <input type="text" class="form-control" id="fecha" placeholder="Ej: 18 de septiembre" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Hora</label>
+                            <input type="text" class="form-control" id="hora" placeholder="Ej: 16:00 pm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Psicóloga(o)</label>
+                            <input type="text" class="form-control" id="psicologa" placeholder="Nombre del profesional" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">Modalidad</label>
+                            <select class="form-select" id="modalidad" onchange="alternarCamposDinámicos()">
+                                <option value="presencial">Presencial</option>
+                                <option value="virtual">Virtual</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Campo dinámico para Presencial -->
+                        <div class="col-md-8" id="divLugar">
+                            <label class="form-label">Lugar</label>
+                            <input type="text" class="form-control" id="lugar" placeholder="Ej: Cuarto piso (Cubículo 1)">
+                        </div>
+
+                        <!-- Campo dinámico para Virtual (Oculto por defecto) -->
+                        <div class="col-md-8" id="divEnlace" style="display: none;">
+                            <label class="form-label">Enlace de la reunión</label>
+                            <input type="text" class="form-control" id="enlace" placeholder="Ej: https://zoom.us/j/123456789">
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="button" class="btn btn-whatsapp btn-lg w-100" onclick="enviarMensaje()">
+                            Generar y Enviar por WhatsApp
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 
     <script>
-        function enviarMensajeWhatsApp() {
-            // 1. Simulación de los datos del alumno/cita (esto vendría de tu base de datos o formulario)
-            const telefono = "51999999999"; // Reemplazar por el número del alumno
-            const nombreAlumno = "Lucia";
-            const fecha = "17 de setiembre de 2026";
-            const hora = "16:00 pm";
-            const psicologo = "Jamir Salazar";
-            const lugar = "Cuarto piso (Cubículo 1)";
+        // Función para mostrar "Lugar" o "Enlace" según la modalidad elegida
+        function alternarCamposDinámicos() {
+            const modalidad = document.getElementById('modalidad').value;
+            const divLugar = document.getElementById('divLugar');
+            const divEnlace = document.getElementById('divEnlace');
 
-            // 2. Construir el mensaje usando Template Literals (las comillas invertidas ` `)
-            // Aquí pones los emojis libremente.
-            const mensaje = `¡Hola, ${nombreAlumno}, te saluda ${psicologo}!
+            if (modalidad === 'presencial') {
+                divLugar.style.display = 'block';
+                divEnlace.style.display = 'none';
+            } else {
+                divLugar.style.display = 'none';
+                divEnlace.style.display = 'block';
+            }
+        }
 
-Te recordamos tu cita de Consejería programada para hoy:
+        // Función principal para armar y enviar el mensaje
+        function enviarMensaje() {
+            // 1. Recoger los datos del formulario
+            const telefono = document.getElementById('telefono').value.replace(/\s+/g, ''); // Quita espacios
+            const nombre = document.getElementById('nombre').value;
+            const fecha = document.getElementById('fecha').value;
+            const hora = document.getElementById('hora').value;
+            const psicologa = document.getElementById('psicologa').value;
+            const modalidad = document.getElementById('modalidad').value;
+
+            // Validación básica
+            if(!telefono || !nombre || !fecha || !hora || !psicologa) {
+                alert("Por favor, completa los campos básicos.");
+                return;
+            }
+
+            let mensaje = "";
+
+            // 2. Construir el mensaje según la modalidad seleccionada
+            if (modalidad === 'presencial') {
+                const lugar = document.getElementById('lugar').value || "Por confirmar";
+                mensaje = `¡Hola, ${nombre}! 👋
+
+Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te recordamos tu cita programada para hoy:
 
 📅 Fecha: ${fecha}
 ⏰ Hora: ${hora}
-👨‍💼 Psicólogo: ${psicologo}
-🏢 Lugar: ${lugar}
+👩🏻‍⚕️ Psicóloga: ${psicologa}
+📍 Lugar: ${lugar}
 
-✅ Por favor, te agradeceremos confirmar tu asistencia respondiendo a este mensaje.
+➡️ Por favor, confirma tu asistencia respondiendo a este mensaje.
 
-¡Te esperamos! 😊
+¡Te esperamos! 🫂`;
 
-Área de Tutoría y Consejería 🎓👥`;
+            } else if (modalidad === 'virtual') {
+                const enlace = document.getElementById('enlace').value || "Enlace pendiente";
+                mensaje = `¡Hola, ${nombre}! 👋
 
-            // 3. LA SOLUCIÓN: Codificar el mensaje para que los emojis no se rompan
+Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te recordamos tu cita programada para hoy:
+
+📅 Fecha: ${fecha}
+⏰ Hora: ${hora}
+👩🏻‍⚕️ Psicóloga: ${psicologa}
+💻 Enlace: ${enlace}
+
+➡️ Por favor, confirma tu asistencia respondiendo a este mensaje.
+
+¡Te esperamos! 🫂`;
+            }
+
+            // 3. Codificar el texto para proteger los emojis y espacios
             const mensajeCodificado = encodeURIComponent(mensaje);
 
-            // 4. Crear el enlace de WhatsApp con el mensaje codificado
+            // 4. Crear la URL de WhatsApp y abrirla
             const urlWhatsApp = `https://wa.me/${telefono}?text=${mensajeCodificado}`;
-
-            // 5. Abrir WhatsApp (en una nueva pestaña)
             window.open(urlWhatsApp, '_blank');
         }
     </script>
