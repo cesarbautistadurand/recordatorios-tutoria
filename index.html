@@ -208,6 +208,21 @@
             color: white;
         }
 
+        .btn-lote {
+            background-color: #128c7e;
+            color: white;
+            font-weight: 700;
+            border: none;
+            box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
+            transition: all 0.2s;
+        }
+
+        .btn-lote:hover {
+            background-color: #0c6b5f;
+            color: white;
+            transform: translateY(-2px);
+        }
+
         .btn-update {
             background: linear-gradient(90deg, var(--cepu-orange), var(--cepu-gold));
             color: white;
@@ -354,7 +369,7 @@
                     </div>
 
                     <!-- =================================================
-                         FILTRO DE FECHA (NUEVO)
+                         FILTRO DE FECHA
                          ================================================= -->
                     <div class="card card-custom p-3 mb-3 bg-white">
                         <label for="fechaFiltro" class="form-label fw-bold section-title">
@@ -496,7 +511,6 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
 
         window.addEventListener('DOMContentLoaded', () => {
             cargarConfig();
-            // Coloca la fecha de hoy por defecto en el filtro
             document.getElementById('fechaFiltro').valueAsDate = new Date();
         });
 
@@ -505,17 +519,12 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
            ========================================================= */
         function coincideFecha(fechaExcel, fechaInput) {
             if (!fechaExcel) return false;
-            if (!fechaInput) return true; // Si por alguna razón el input está vacío, carga todo
+            if (!fechaInput) return true;
 
-            // Separamos la fecha que eligió el usuario (Viene en formato YYYY-MM-DD)
             let [fAnio, fMes, fDia] = fechaInput.split('-').map(Number);
-
-            // Buscamos números en la fecha del Excel (ej. 18/09/2026 o 18-09-26)
             let match = String(fechaExcel).match(/(\d{1,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,4})/);
             
-            if (!match) {
-                return false; // Si no tiene formato de fecha reconocible, la ignoramos
-            }
+            if (!match) return false;
 
             let num1 = parseInt(match[1], 10);
             let num2 = parseInt(match[2], 10);
@@ -523,19 +532,14 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
 
             let exDia, exMes, exAnio;
 
-            // Tratamos de adivinar el formato en el que está escrito en el Excel
             if (num1 > 1000) { 
-                // YYYY/MM/DD
                 exAnio = num1; exMes = num2; exDia = num3;
             } else if (num3 > 1000) { 
-                // DD/MM/YYYY
                 exDia = num1; exMes = num2; exAnio = num3;
             } else { 
-                // DD/MM/YY (Asumimos año 2000+)
                 exDia = num1; exMes = num2; exAnio = num3 + 2000;
             }
 
-            // Validamos que el Día, Mes y Año coincidan exactamente
             return (exDia === fDia && exMes === fMes && exAnio === fAnio);
         }
 
@@ -674,7 +678,6 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
             let grupos = {};
             let ordenNombres = [];
             
-            // Contadores de errores y filtros
             let descartadosSinDatos = 0;
             let descartadosDuplicados = 0;
             let descartadosPorFecha = 0;
@@ -682,7 +685,6 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
             let hojasIgnoradas = [];
             let faltaColumnaFecha = false;
 
-            // Capturar la fecha que se ha elegido en el calendario de la web
             let fechaFiltroVal = document.getElementById('fechaFiltro').value;
 
             hojas.forEach(({ nombre: nombreHoja, filas }) => {
@@ -698,7 +700,7 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
                     nombre: encontrarIndice(headersLower, ['nombre', 'nombres', 'estudiante', 'alumno', 'paciente', 'contacto']),
                     apellido: encontrarIndice(headersLower, ['apellido', 'apellidos']),
                     numero: encontrarIndice(headersLower, ['numero', 'número', 'celular', 'telefono', 'teléfono', 'whatsapp', 'cel', 'telf', 'wsp']),
-                    fecha_cita: encontrarIndice(headersLower, ['fecha', 'dia', 'día', 'date']), // NUEVO: Detección de columna Fecha
+                    fecha_cita: encontrarIndice(headersLower, ['fecha', 'dia', 'día', 'date']),
                     salon: encontrarIndice(headersLower, ['salon', 'salón', 'aula', 'grupo']),
                     modalidad: encontrarIndice(headersLower, ['modalidad', 'tipo', 'formato']),
                     lugar: encontrarIndice(headersLower, ['lugar', 'sede']),
@@ -712,7 +714,6 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
                     return;
                 }
 
-                // Detectamos si alguna hoja no tenía columna de fecha
                 if (idx.fecha_cita === -1) {
                     faltaColumnaFecha = true;
                 }
@@ -727,18 +728,17 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
                     let apellido = get(idx.apellido);
                     let nombreCompleto = [nombre, apellido].filter(Boolean).join(' ').trim();
                     let telefonoRaw = get(idx.numero);
-                    let fechaCitaRaw = get(idx.fecha_cita); // NUEVO: Extraemos la fecha de la cita de esa fila
+                    let fechaCitaRaw = get(idx.fecha_cita);
 
                     if (!nombreCompleto || !telefonoRaw) {
                         descartadosSinDatos++;
                         return;
                     }
 
-                    // NUEVO: Validar la fecha
                     if (idx.fecha_cita !== -1) {
                         if (!coincideFecha(fechaCitaRaw, fechaFiltroVal)) {
                             descartadosPorFecha++;
-                            return; // Terminamos y no lo agregamos a la lista
+                            return; 
                         }
                     }
 
@@ -820,9 +820,42 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
 
             let total = Object.values(grupos).reduce((acc, arr) => acc + arr.length, 0);
             
-            // Mostrar la fecha elegida en el mensaje de éxito
             let fechaTextoUI = fechaFiltroVal.split('-').reverse().join('/');
             mostrarEstado(`Agenda actualizada para el día ${fechaTextoUI}: ${total} alumno(s) agendado(s) en ${ordenPsicologos.length} grupo(s).`, 'success');
+        }
+
+        /* =========================================================
+           ENVÍO POR LOTE (BULK SEND)
+           ========================================================= */
+        function enviarGrupoLote(psicologo) {
+            let contactos = datosAgrupados[psicologo].filter(c => c.valido);
+            
+            if (contactos.length === 0) {
+                alert('No hay números válidos en este grupo para enviar mensajes.');
+                return;
+            }
+
+            let msg = `Se abrirán ${contactos.length} pestañas de WhatsApp.\n\n` +
+                      `⚠️ MUY IMPORTANTE:\n` +
+                      `1. Tu navegador te pedirá permiso para abrir "ventanas emergentes" (pop-ups). DEBES PERMITIRLO para que funcione.\n` +
+                      `2. Tendrás que hacer clic en la flechita de "Enviar" en cada chat de WhatsApp que se abra.\n\n` +
+                      `¿Deseas continuar?`;
+
+            if (!confirm(msg)) return;
+
+            let mensajeTemplate = document.getElementById('messageBox').value;
+
+            // Abrimos cada enlace con una pausa de 1 segundo entre ellos para no saturar el navegador
+            contactos.forEach((c, index) => {
+                setTimeout(() => {
+                    let mensajeFinal = reemplazarPlaceholders(mensajeTemplate, c);
+                    let params = new URLSearchParams();
+                    params.set('phone', c.telefono);
+                    params.set('text', mensajeFinal);
+                    let url = `https://api.whatsapp.com/send?${params.toString()}`;
+                    window.open(url, '_blank');
+                }, index * 1000); 
+            });
         }
 
         /* =========================================================
@@ -850,7 +883,6 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
 
         function formatearFechaHoy() {
             let inputFiltro = document.getElementById('fechaFiltro').value;
-            // Si hay una fecha seleccionada en el filtro, usamos esa para el mensaje
             if (inputFiltro) {
                 let [y, m, d] = inputFiltro.split('-');
                 let f = new Date(y, m - 1, d);
@@ -858,7 +890,6 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
                 return texto.charAt(0).toUpperCase() + texto.slice(1);
             }
 
-            // Fallback: usar la fecha actual del sistema
             let texto = new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
             return texto.charAt(0).toUpperCase() + texto.slice(1);
         }
@@ -951,6 +982,7 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
 
             ordenPsicologos.forEach((psicologo, i) => {
                 let contactos = datosAgrupados[psicologo];
+                let validosCount = contactos.filter(c => c.valido).length;
                 let itemId = `grupo${i}`;
                 let item = document.createElement('div');
                 item.className = 'accordion-item mb-2';
@@ -984,6 +1016,18 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
                 let body = document.createElement('div');
                 body.className = 'accordion-body bg-light';
 
+                // ==========================================
+                // NUEVO: Botón de Envío por Lote
+                // ==========================================
+                let btnLote = document.createElement('button');
+                btnLote.className = 'btn btn-lote w-100 mb-3 py-2 text-uppercase';
+                btnLote.innerHTML = `<span class="emoji">🚀</span> Enviar a todos los alumnos de este grupo (${validosCount})`;
+                btnLote.onclick = function() {
+                    enviarGrupoLote(psicologo);
+                };
+                body.appendChild(btnLote);
+
+                // Tarjetas individuales
                 let fragment = document.createDocumentFragment();
                 contactos.forEach(c => fragment.appendChild(crearTarjetaContacto(c, mensajeTemplate)));
                 body.appendChild(fragment);
