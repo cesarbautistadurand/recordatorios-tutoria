@@ -836,16 +836,18 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
             }
 
             let msg = `Se abrirán ${contactos.length} pestañas de WhatsApp.\n\n` +
-                      `⚠️ MUY IMPORTANTE:\n` +
-                      `1. Tu navegador te pedirá permiso para abrir "ventanas emergentes" (pop-ups). DEBES PERMITIRLO para que funcione.\n` +
-                      `2. Tendrás que hacer clic en la flechita de "Enviar" en cada chat de WhatsApp que se abra.\n\n` +
+                      `⚠️ IMPORTANTE:\n` +
+                      `1. Dar acceso a pop-ups (ventanas emergentes)\n` +
+                      `2. Se abrirá automáticamente todas las pestañas para enviar los mensajes en chrome/safari.\n` +
+                      `3. Si la cuenta de waap vinculada, tiene chat previo con el/la estudiante, aparecerá el mensaje como borrador, dentro el box de contactos. Solo deberás entrar al chat y enviar.\n` +
+                      `4. Si la cuenta de waap vinculada, no tiene chat previo con el/la estudiante, no aparecerá como borrador en el box de contactos.\n\n` +
                       `¿Deseas continuar?`;
 
             if (!confirm(msg)) return;
 
             let mensajeTemplate = document.getElementById('messageBox').value;
 
-            // Abrimos cada enlace con una pausa de 1 segundo entre ellos para no saturar el navegador
+            // Apertura de pestañas cada 3 segundos
             contactos.forEach((c, index) => {
                 setTimeout(() => {
                     let mensajeFinal = reemplazarPlaceholders(mensajeTemplate, c);
@@ -854,7 +856,7 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
                     params.set('text', mensajeFinal);
                     let url = `https://api.whatsapp.com/send?${params.toString()}`;
                     window.open(url, '_blank');
-                }, index * 1000); 
+                }, index * 3000); 
             });
         }
 
@@ -1016,12 +1018,10 @@ Te saludamos desde el Área de Tutoría y Consejería ❤️🧠 del CEPU. Te re
                 let body = document.createElement('div');
                 body.className = 'accordion-body bg-light';
 
-                // ==========================================
-                // NUEVO: Botón de Envío por Lote
-                // ==========================================
+                // Botón de Envío por Lote
                 let btnLote = document.createElement('button');
                 btnLote.className = 'btn btn-lote w-100 mb-3 py-2 text-uppercase';
-                btnLote.innerHTML = `<span class="emoji">🚀</span> Enviar a todos los alumnos de este grupo (${validosCount})`;
+                btnLote.innerHTML = `Enviar a todos los alumnos de este grupo (${validosCount})`;
                 btnLote.onclick = function() {
                     enviarGrupoLote(psicologo);
                 };
